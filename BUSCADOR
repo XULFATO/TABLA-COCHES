@@ -2,54 +2,75 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tabla 7 columnas con autocompletar por columna</title>
+  <title>Tabla 7 columnas con filtros y resaltado</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    :root { --bg:#f5f5f5; --ink:#222; --muted:#666; --line:#ddd; --head:#333; --headInk:#fff; }
+    :root {
+      --bg:#f5f5f5; --ink:#222; --muted:#666; --line:#ddd; --head:#333; --headInk:#fff;
+      --active:#0b6efd;         /* color del filtro activo */
+      --mark-bg:#fff3cd;        /* fondo del texto marcado en celdas */
+      --mark-ink:#7a5a00;       /* color del texto marcado */
+    }
     body { font-family: system-ui, Arial, sans-serif; margin: 20px; color: var(--ink); background: var(--bg); }
-    h2 { margin-top: 0 }
+    h2 { margin: 0 0 8px }
+    .meta { font-size: 12px; color: var(--muted); margin: 6px 0 14px; }
     table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
-    th, td { padding: 8px 10px; border: 1px solid var(--line); text-align: left; }
-    thead th { background: var(--head); color: var(--headInk); position: sticky; top: 38px; z-index: 1; }
+    th, td { padding: 8px 10px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    thead th { background: var(--head); color: var(--headInk); position: sticky; top: 42px; z-index: 1; }
     thead tr:first-child th { position: sticky; top: 0; z-index: 2; background: #fff; color: var(--ink); }
-    thead input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+    thead input {
+      width: 100%; box-sizing: border-box; padding: 6px 8px;
+      border: 1px solid var(--line); border-radius: 6px; outline: none;
+      transition: box-shadow .15s, border-color .15s, color .15s, font-weight .15s;
+    }
+    thead input:focus { border-color: var(--active); box-shadow: 0 0 0 3px rgba(11,110,253,.15); }
+    /* 👉 filtro activo: negrita + color */
+    thead input.active { color: var(--active); font-weight: 700; }
+
     tbody tr:nth-child(even) td { background: #fafafa; }
-    .meta { font-size: 12px; color: var(--muted); margin: 8px 0 16px; }
+    /* 👉 resaltado dentro de celdas */
+    mark {
+      background: var(--mark-bg);
+      color: var(--mark-ink);
+      padding: 0 .15em;
+      border-radius: 3px;
+    }
+    .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h2>Tabla filtrable con escritura + sugerencias por columna</h2>
-  <div class="meta">Escribe en cualquier campo para ver sugerencias (máx. 50). Los filtros se combinan.</div>
+  <h2>Tabla filtrable con escritura + desplegable y resaltado</h2>
+  <div class="meta">Escribe para ver sugerencias (máx. 50 por columna). Los filtros se combinan.</div>
 
   <table>
     <thead>
       <tr>
         <th>
-          <input id="f0" list="dl0" placeholder="Marca" oninput="handleType(0,this.value)">
+          <input id="f0" list="dl0" placeholder="Marca" oninput="handleType(0,this)">
           <datalist id="dl0"></datalist>
         </th>
         <th>
-          <input id="f1" list="dl1" placeholder="Modelo" oninput="handleType(1,this.value)">
+          <input id="f1" list="dl1" placeholder="Modelo" oninput="handleType(1,this)">
           <datalist id="dl1"></datalist>
         </th>
         <th>
-          <input id="f2" list="dl2" placeholder="Caballos" oninput="handleType(2,this.value)">
+          <input id="f2" list="dl2" placeholder="Caballos" oninput="handleType(2,this)">
           <datalist id="dl2"></datalist>
         </th>
         <th>
-          <input id="f3" list="dl3" placeholder="Potencia (kW)" oninput="handleType(3,this.value)">
+          <input id="f3" list="dl3" placeholder="Potencia (kW)" oninput="handleType(3,this)">
           <datalist id="dl3"></datalist>
         </th>
         <th>
-          <input id="f4" list="dl4" placeholder="Año" oninput="handleType(4,this.value)">
+          <input id="f4" list="dl4" placeholder="Año" oninput="handleType(4,this)">
           <datalist id="dl4"></datalist>
         </th>
         <th>
-          <input id="f5" list="dl5" placeholder="País" oninput="handleType(5,this.value)">
+          <input id="f5" list="dl5" placeholder="País" oninput="handleType(5,this)">
           <datalist id="dl5"></datalist>
         </th>
         <th>
-          <input id="f6" list="dl6" placeholder="Descripción" oninput="handleType(6,this.value)">
+          <input id="f6" list="dl6" placeholder="Descripción" oninput="handleType(6,this)">
           <datalist id="dl6"></datalist>
         </th>
       </tr>
@@ -61,10 +82,11 @@
     <tbody id="tbody"></tbody>
   </table>
 
-  <div class="meta" id="status"></div>
+  <div class="status" id="status"></div>
 
   <script>
-    // 🔽 PEGA AQUÍ TUS 23.000 FILAS. Cada fila = [Marca, Modelo, Caballos, kW, Año, País, Descripción]
+    /* ==== PEGA AQUÍ TUS 23.000 FILAS ====
+       Cada fila: [Marca, Modelo, Caballos, kW, Año, País, Descripción] */
     const data = [
       ["Audi","A3 35 TFSI","150","110","2020","Alemania","Compacto premium eficiente, ideal para ciudad"],
       ["BMW","320i","184","135","2019","Alemania","Berlina equilibrada, buen consumo en autopista"],
@@ -98,36 +120,57 @@
       ["Hyundai","Tucson 1.6","150","110","2021","Corea","SUV con diseño llamativo y mucho equipamiento"]
     ];
 
-    // ⚙️ Config
-    const MAX_SUGGESTIONS = 50;   // límite de opciones en cada datalist
-    const MAX_RENDER = 500;       // pinta como máximo (para fluidez con 23k)
+    // ⚙️ Configurables
+    const MAX_SUGGESTIONS = 50; // opciones máx por datalist
+    const MAX_RENDER = 500;     // filas máx que se pintan (fluidez)
 
     // Estado
-    const filters = ["","","","","","",""];
+    const inputs = [...document.querySelectorAll('thead input')];
+    const filters = Array(7).fill('');
     const tbody = document.getElementById('tbody');
     const statusEl = document.getElementById('status');
 
-    // Precalcular únicos por columna (para sugerencias rápidas)
+    // Uniques por columna para sugerencias
     const uniques = Array.from({length:7}, ()=> new Set());
     for (const row of data) for (let c=0;c<7;c++) uniques[c].add(String(row[c]));
     const uniqueLists = uniques.map(s => Array.from(s).sort());
 
-    // Debounce simple
+    // Debounce
     let tId;
-    function debounce(fn, ms=120){ clearTimeout(tId); tId=setTimeout(fn, ms); }
+    const debounce = (fn, ms=120) => { clearTimeout(tId); tId = setTimeout(fn, ms); };
 
-    // Al teclear: actualiza sugerencias de esa columna + aplica filtros
-    function handleType(colIndex, value){
-      filters[colIndex] = (value||"").toLowerCase();
-      updateDatalist(colIndex, value);
+    // Helpers de marcado seguro
+    const escapeHtml = (s) => String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Devuelve HTML con <mark> alrededor de coincidencias (case-insensitive)
+    function highlight(text, needle){
+      if (!needle) return escapeHtml(text);
+      const re = new RegExp(`(${escapeRegex(needle)})`, 'ig');
+      return escapeHtml(text).replace(re, '<mark>$1</mark>');
+    }
+
+    function handleType(colIndex, el){
+      const val = (el.value || '').trim();
+      filters[colIndex] = val.toLowerCase();
+
+      // estilo activo/inactivo del input
+      if (val) el.classList.add('active'); else el.classList.remove('active');
+
+      // actualizar sugerencias
+      updateDatalist(colIndex, val);
+
+      // pintar
       debounce(renderTable);
     }
 
     function updateDatalist(colIndex, typed){
-      const listId = 'dl'+colIndex;
-      const dl = document.getElementById(listId);
+      const dl = document.getElementById('dl'+colIndex);
       dl.innerHTML = '';
-      if (!typed) return; // no saturar opciones si el campo está vacío
+      if (!typed) return;
       const t = typed.toLowerCase();
       let count = 0;
       for (const v of uniqueLists[colIndex]) {
@@ -140,21 +183,25 @@
       }
     }
 
+    function rowMatches(row){
+      for (let i=0;i<7;i++){
+        const f = filters[i];
+        if (f && !String(row[i]).toLowerCase().includes(f)) return false;
+      }
+      return true;
+    }
+
     function renderTable(){
       const frag = document.createDocumentFragment();
       let shown = 0, matched = 0;
-      outer:
       for (const row of data) {
-        for (let i=0;i<7;i++){
-          const f = filters[i];
-          if (f && !String(row[i]).toLowerCase().includes(f)) continue outer;
-        }
+        if (!rowMatches(row)) continue;
         matched++;
         if (shown < MAX_RENDER){
           const tr = document.createElement('tr');
-          for (const cell of row){
+          for (let c=0;c<7;c++){
             const td = document.createElement('td');
-            td.textContent = cell;
+            td.innerHTML = highlight(row[c], filters[c]);
             tr.appendChild(td);
           }
           frag.appendChild(tr);
@@ -163,17 +210,16 @@
       }
       tbody.innerHTML = '';
       tbody.appendChild(frag);
-      statusEl.textContent = `Coincidencias: ${matched.toLocaleString()}  —  Mostrando: ${shown.toLocaleString()}${matched>shown?' (vista limitada para fluidez)':''}`;
+      statusEl.textContent = `Coincidencias: ${matched.toLocaleString()} — Mostrando: ${shown.toLocaleString()}${matched>shown?' (limitado para fluidez)':''}`;
     }
 
-    // Inicial
+    // inicial
     renderTable();
 
-    // Si el usuario selecciona una sugerencia desde el desplegable (evento change)
-    for (let i=0;i<7;i++){
-      const input = document.getElementById('f'+i);
-      input.addEventListener('change', e => { handleType(i, e.target.value); });
-    }
+    // también marcar activo cuando seleccionas del datalist (evento change)
+    inputs.forEach((inp, i)=>{
+      inp.addEventListener('change', e => handleType(i, e.target));
+    });
   </script>
 </body>
 </html>
