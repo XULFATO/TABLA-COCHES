@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tabla filtrable 7 columnas con reset y datalist dinámico</title>
+  <title>Tabla filtrable encadenada 7 columnas</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -36,11 +36,10 @@
   </style>
 </head>
 <body>
-  <h2>Tabla filtrable 7 columnas</h2>
+  <h2>Tabla filtrable encadenada 7 columnas</h2>
   <div class="meta">
-    Usa <b>+palabra</b> para forzar coincidencia y <b>-palabra</b> para excluir.  
-    Las coincidencias aparecen <mark>resaltadas</mark>.  
-    Si hay más de 500 coincidencias con filtros, se muestran todas.
+    Filtrado jerárquico: al aplicar un filtro, las sugerencias de los demás campos se actualizan automáticamente según las filas visibles.  
+    Usa <b>+palabra</b> y <b>-palabra</b> como antes.
   </div>
 
   <div class="actions">
@@ -69,17 +68,18 @@
   <div class="status" id="status"></div>
 
   <script>
-    // 🔽 Sustituye por tus 23.000 registros reales
+    // 🔽 Sustituye por tus datos reales
     const data = [
-      ["FICH001","12345","TXT","Descripción de prueba 1","Capítulo A","Otra descripción","C1 100€"],
-      ["FICH002","67890","PDF","Algo interesante Madrid","Capítulo B","Texto auxiliar","C2 250€"],
-      ["FICH003","13579","CSV","Incluye Alemania","Capítulo C","Más detalles","C3 75€"],
-      ["FICH004","24680","XLS","Otro registro de Madrid","Capítulo D","Descripción extendida","C4 300€"],
+      ["FICH001","12345","TXT","3 puertas","F","desc X","C1 100€"],
+      ["FICH002","67890","TXT","3 puertas","G","desc X","C1 200€"],
+      ["FICH003","13579","TXT","3 puertas","H","desc Y","C1 300€"],
+      ["FICH004","24680","TXT","3 puertas","I","desc Z","C1 400€"],
+      ["FICH005","11223","TXT","7 puertas","A","desc A","C2 500€"],
+      ["FICH006","44556","TXT","7 puertas","B","desc B","C2 600€"],
     ];
 
     const MAX_SUGGESTIONS = 50;
     const DEFAULT_RENDER_LIMIT = 500;
-
     const inputs = [...document.querySelectorAll('thead input')];
     const filters = Array(7).fill('');
     const tbody = document.getElementById('tbody');
@@ -87,15 +87,6 @@
 
     let tId;
     const debounce = (fn, ms=120) => { clearTimeout(tId); tId = setTimeout(fn, ms); };
-
-    function handleType(colIndex, el){
-      const val = (el.value || '').trim();
-      filters[colIndex] = val.toLowerCase();
-
-      if (val) el.classList.add('active'); else el.classList.remove('active');
-      updateDatalist(colIndex, val);
-      debounce(renderTable);
-    }
 
     function rowMatches(row, ignoreCol = -1){
       for (let i=0;i<7;i++){
@@ -105,13 +96,9 @@
         const parts = f.split(/\s+/).filter(Boolean);
         const cell = String(row[i]).toLowerCase();
         for (const p of parts) {
-          if (p.startsWith('+')) {
-            if (!cell.includes(p.slice(1))) return false;
-          } else if (p.startsWith('-')) {
-            if (cell.includes(p.slice(1))) return false;
-          } else {
-            if (!cell.includes(p)) return false;
-          }
+          if (p.startsWith('+')) { if (!cell.includes(p.slice(1))) return false; }
+          else if (p.startsWith('-')) { if (cell.includes(p.slice(1))) return false; }
+          else { if (!cell.includes(p)) return false; }
         }
       }
       return true;
@@ -133,10 +120,7 @@
 
     function renderTable(){
       const matchedRows = [];
-      for (const row of data) {
-        if (rowMatches(row)) matchedRows.push(row);
-      }
-
+      for (const row of data) if (rowMatches(row)) matchedRows.push(row);
       const matched = matchedRows.length;
       const activeFilters = filters.some(f => f.trim() !== '');
       const renderLimit = (activeFilters && matched > DEFAULT_RENDER_LIMIT) ? matched : DEFAULT_RENDER_LIMIT;
@@ -160,15 +144,8 @@
     function updateDatalist(colIndex, typed){
       const dl = document.getElementById('dl'+colIndex);
       dl.innerHTML = '';
-
-      // Generar lista dinámica según el filtrado actual excluyendo la columna activa
       const subset = new Set();
-      for (const row of data){
-        if (rowMatches(row, colIndex)){
-          subset.add(String(row[colIndex]));
-        }
-      }
-
+      for (const row of data) if (rowMatches(row, colIndex)) subset.add(String(row[colIndex]));
       const options = Array.from(subset).sort();
       const t = (typed||'').toLowerCase();
       let count = 0;
@@ -182,54 +159,31 @@
       }
     }
 
+    function updateAllDatalists(except = -1){ // 🔸 NUEVO
+      for (let i=0;i<7;i++){
+        if (i===except) continue;
+        updateDatalist(i, inputs[i].value);
+      }
+    }
+
+    function handleType(colIndex, el){
+      const val = (el.value || '').trim();
+      filters[colIndex] = val.toLowerCase();
+      if (val) el.classList.add('active'); else el.classList.remove('active');
+      updateDatalist(colIndex, val);
+      updateAllDatalists(colIndex);  // 🔸 NUEVO: refrescar las demás listas
+      debounce(renderTable);
+    }
+
     function clearAllFilters(){
       for (let i=0;i<7;i++){
-        filters[i] = '';
-        inputs[i].value = '';
-        inputs[i].classList.remove('active');
-        document.getElementById('dl'+i).innerHTML = '';
+        filters[i]=''; inputs[i].value=''; inputs[i].classList.remove('active');
+        document.getElementById('dl'+i).innerHTML='';
       }
       renderTable();
     }
 
     renderTable();
-
-    // ===== Autocierre datalist =====
-    function closeDatalist(el) {
-      const listId = el.getAttribute('list');
-      el.blur();
-      el.setAttribute('list','');
-      setTimeout(() => {
-        el.setAttribute('list', listId);
-        el.focus();
-        el.select();
-      }, 0);
-    }
-    function isExactOption(el, colIndex) {
-      const v = (el.value || '').trim();
-      if (!v) return false;
-      const subset = new Set();
-      for (const row of data){
-        if (rowMatches(row, colIndex)){
-          subset.add(String(row[colIndex]));
-        }
-      }
-      return subset.has(v);
-    }
-    inputs.forEach((inp, i) => {
-      inp.addEventListener('change', e => {
-        handleType(i, e.target);
-        closeDatalist(e.target);
-      });
-      inp.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { handleType(i, e.target); closeDatalist(e.target); }
-        else if (e.key === 'Tab' || e.key === 'Escape') { closeDatalist(e.target); }
-      });
-      inp.addEventListener('input', e => {
-        handleType(i, e.target);
-        if (isExactOption(e.target, i)) { closeDatalist(e.target); }
-      });
-    });
   </script>
 </body>
 </html>
