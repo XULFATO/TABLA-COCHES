@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tabla filtrable encadenada 7 columnas</title>
+  <title>Tabla filtrable encadenada 7 columnas con contador</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -38,8 +38,8 @@
 <body>
   <h2>Tabla filtrable encadenada 7 columnas</h2>
   <div class="meta">
-    Filtrado jerárquico: al aplicar un filtro, las sugerencias de los demás campos se actualizan automáticamente según las filas visibles.  
-    Usa <b>+palabra</b> y <b>-palabra</b> como antes.
+    ➕ Ahora en cada desplegable aparece el número de repeticiones por valor (por ejemplo: “A (127)”).  
+    Esto se calcula en tiempo real sobre el subconjunto filtrado actual.
   </div>
 
   <div class="actions">
@@ -71,22 +71,20 @@
     // 🔽 Sustituye por tus datos reales
     const data = [
       ["FICH001","12345","TXT","3 puertas","F","desc X","C1 100€"],
-      ["FICH002","67890","TXT","3 puertas","G","desc X","C1 200€"],
-      ["FICH003","13579","TXT","3 puertas","H","desc Y","C1 300€"],
-      ["FICH004","24680","TXT","3 puertas","I","desc Z","C1 400€"],
+      ["FICH002","67890","TXT","3 puertas","F","desc X","C1 200€"],
+      ["FICH003","13579","TXT","3 puertas","G","desc Y","C1 300€"],
+      ["FICH004","24680","TXT","3 puertas","H","desc Z","C1 400€"],
       ["FICH005","11223","TXT","7 puertas","A","desc A","C2 500€"],
-      ["FICH006","44556","TXT","7 puertas","B","desc B","C2 600€"],
+      ["FICH006","44556","TXT","7 puertas","A","desc B","C2 600€"],
+      ["FICH007","99887","TXT","7 puertas","B","desc C","C2 700€"],
     ];
 
-    const MAX_SUGGESTIONS = 50;
+    const MAX_SUGGESTIONS = 500;
     const DEFAULT_RENDER_LIMIT = 500;
     const inputs = [...document.querySelectorAll('thead input')];
     const filters = Array(7).fill('');
     const tbody = document.getElementById('tbody');
     const statusEl = document.getElementById('status');
-
-    let tId;
-    const debounce = (fn, ms=120) => { clearTimeout(tId); tId = setTimeout(fn, ms); };
 
     function rowMatches(row, ignoreCol = -1){
       for (let i=0;i<7;i++){
@@ -144,26 +142,32 @@
     function updateDatalist(colIndex, typed){
       const dl = document.getElementById('dl'+colIndex);
       dl.innerHTML = '';
-      const subset = new Set();
-      for (const row of data) if (rowMatches(row, colIndex)) subset.add(String(row[colIndex]));
-      const options = Array.from(subset).sort();
+
+      // 🟡 NUEVO: contar repeticiones
+      const counts = new Map();
+      for (const row of data){
+        if (rowMatches(row, colIndex)){
+          const val = String(row[colIndex]);
+          counts.set(val, (counts.get(val) || 0) + 1);
+        }
+      }
+
+      const options = Array.from(counts.entries()).sort((a,b)=>a[0].localeCompare(b[0]));
       const t = (typed||'').toLowerCase();
       let count = 0;
-      for (const v of options){
-        if (!typed || v.toLowerCase().includes(t)){
+      for (const [val, n] of options){
+        if (!typed || val.toLowerCase().includes(t)){
           const opt = document.createElement('option');
-          opt.value = v;
+          opt.value = val;
+          opt.label = `${val} (${n})`; // 🟡 mostrar contador
           dl.appendChild(opt);
           if (++count >= MAX_SUGGESTIONS) break;
         }
       }
     }
 
-    function updateAllDatalists(except = -1){ // 🔸 NUEVO
-      for (let i=0;i<7;i++){
-        if (i===except) continue;
-        updateDatalist(i, inputs[i].value);
-      }
+    function updateAllDatalists(except = -1){
+      for (let i=0;i<7;i++) if (i!==except) updateDatalist(i, inputs[i].value);
     }
 
     function handleType(colIndex, el){
@@ -171,8 +175,8 @@
       filters[colIndex] = val.toLowerCase();
       if (val) el.classList.add('active'); else el.classList.remove('active');
       updateDatalist(colIndex, val);
-      updateAllDatalists(colIndex);  // 🔸 NUEVO: refrescar las demás listas
-      debounce(renderTable);
+      updateAllDatalists(colIndex);
+      renderTable();
     }
 
     function clearAllFilters(){
@@ -184,6 +188,7 @@
     }
 
     renderTable();
+    updateAllDatalists(); // inicial
   </script>
 </body>
 </html>
