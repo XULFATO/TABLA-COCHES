@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tabla filtrable 7 columnas con resaltado</title>
+  <title>Tabla filtrable 7 columnas con reset y datalist dinámico</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -24,21 +24,27 @@
     thead input:focus { border-color: var(--active); box-shadow: 0 0 0 3px rgba(11,110,253,.15); }
     thead input.active { color: var(--active); font-weight: 700; }
     tbody tr:nth-child(even) td { background: #fafafa; }
-    mark {
-      background: none;
-      color: var(--active);
-      font-weight: 700;
-    }
+    mark { background: none; color: var(--active); font-weight: 700; }
     .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
+    .actions { margin-bottom: 10px; }
+    .actions button {
+      padding: 6px 10px; border: 1px solid var(--active); background: var(--active);
+      color: #fff; border-radius: 6px; cursor: pointer; font-size: 14px;
+      transition: background .2s;
+    }
+    .actions button:hover { background: #094db1; }
   </style>
 </head>
 <body>
   <h2>Tabla filtrable 7 columnas</h2>
   <div class="meta">
-    Escribe para ver sugerencias (máx. 50 por columna).  
     Usa <b>+palabra</b> para forzar coincidencia y <b>-palabra</b> para excluir.  
     Las coincidencias aparecen <mark>resaltadas</mark>.  
     Si hay más de 500 coincidencias con filtros, se muestran todas.
+  </div>
+
+  <div class="actions">
+    <button onclick="clearAllFilters()">🧼 Borrar todos los filtros</button>
   </div>
 
   <table>
@@ -53,13 +59,8 @@
         <th><input id="f6" list="dl6" placeholder="C EURO" oninput="handleType(6,this)"><datalist id="dl6"></datalist></th>
       </tr>
       <tr>
-        <th title="Valores únicos calculados al cargar">Fichero</th>
-        <th title="Valores únicos calculados al cargar">Código</th>
-        <th title="Valores únicos calculados al cargar">Formato</th>
-        <th title="Valores únicos calculados al cargar">Descripción</th>
-        <th title="Valores únicos calculados al cargar">Capítulo</th>
-        <th title="Valores únicos calculados al cargar">Descripción 2</th>
-        <th title="Valores únicos calculados al cargar">C EURO</th>
+        <th>Fichero</th><th>Código</th><th>Formato</th><th>Descripción</th>
+        <th>Capítulo</th><th>Descripción 2</th><th>C EURO</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -68,7 +69,7 @@
   <div class="status" id="status"></div>
 
   <script>
-    // 🔽 Sustituye por tus 23.000 registros reales (7 columnas)
+    // 🔽 Sustituye por tus 23.000 registros reales
     const data = [
       ["FICH001","12345","TXT","Descripción de prueba 1","Capítulo A","Otra descripción","C1 100€"],
       ["FICH002","67890","PDF","Algo interesante Madrid","Capítulo B","Texto auxiliar","C2 250€"],
@@ -84,16 +85,6 @@
     const tbody = document.getElementById('tbody');
     const statusEl = document.getElementById('status');
 
-    // Uniques por columna
-    const uniques = Array.from({length:7}, ()=> new Set());
-    for (const row of data) for (let c=0;c<7;c++) uniques[c].add(String(row[c]));
-    const uniqueLists = uniques.map(s => Array.from(s).sort());
-
-    // Tooltip con nº de valores únicos por columna
-    document.querySelectorAll('thead tr:nth-child(2) th').forEach((th,i)=>{
-      th.title = `${uniqueLists[i].length.toLocaleString()} valores únicos`;
-    });
-
     let tId;
     const debounce = (fn, ms=120) => { clearTimeout(tId); tId = setTimeout(fn, ms); };
 
@@ -106,30 +97,13 @@
       debounce(renderTable);
     }
 
-    function updateDatalist(colIndex, typed){
-      const dl = document.getElementById('dl'+colIndex);
-      dl.innerHTML = '';
-      if (!typed) return;
-      const t = typed.toLowerCase();
-      let count = 0;
-      for (const v of uniqueLists[colIndex]) {
-        if (v.toLowerCase().includes(t)) {
-          const opt = document.createElement('option');
-          opt.value = v;
-          dl.appendChild(opt);
-          if (++count >= MAX_SUGGESTIONS) break;
-        }
-      }
-    }
-
-    function rowMatches(row){
+    function rowMatches(row, ignoreCol = -1){
       for (let i=0;i<7;i++){
+        if (i===ignoreCol) continue;
         const f = filters[i];
         if (!f) continue;
-
         const parts = f.split(/\s+/).filter(Boolean);
         const cell = String(row[i]).toLowerCase();
-
         for (const p of parts) {
           if (p.startsWith('+')) {
             if (!cell.includes(p.slice(1))) return false;
@@ -146,7 +120,6 @@
     function highlightText(text, colIndex){
       const f = filters[colIndex];
       if (!f) return text;
-
       let result = text;
       const parts = f.split(/\s+/).filter(Boolean).filter(p => !p.startsWith('-'));
       for (const p of parts) {
@@ -184,9 +157,44 @@
       statusEl.textContent = `Coincidencias: ${matched.toLocaleString()} — Mostrando: ${Math.min(matched, renderLimit).toLocaleString()}${matched>renderLimit?' (limitado por rendimiento)':''}`;
     }
 
+    function updateDatalist(colIndex, typed){
+      const dl = document.getElementById('dl'+colIndex);
+      dl.innerHTML = '';
+
+      // Generar lista dinámica según el filtrado actual excluyendo la columna activa
+      const subset = new Set();
+      for (const row of data){
+        if (rowMatches(row, colIndex)){
+          subset.add(String(row[colIndex]));
+        }
+      }
+
+      const options = Array.from(subset).sort();
+      const t = (typed||'').toLowerCase();
+      let count = 0;
+      for (const v of options){
+        if (!typed || v.toLowerCase().includes(t)){
+          const opt = document.createElement('option');
+          opt.value = v;
+          dl.appendChild(opt);
+          if (++count >= MAX_SUGGESTIONS) break;
+        }
+      }
+    }
+
+    function clearAllFilters(){
+      for (let i=0;i<7;i++){
+        filters[i] = '';
+        inputs[i].value = '';
+        inputs[i].classList.remove('active');
+        document.getElementById('dl'+i).innerHTML = '';
+      }
+      renderTable();
+    }
+
     renderTable();
 
-    // ===== AUTOCIERRE DATALIST =====
+    // ===== Autocierre datalist =====
     function closeDatalist(el) {
       const listId = el.getAttribute('list');
       el.blur();
@@ -200,7 +208,13 @@
     function isExactOption(el, colIndex) {
       const v = (el.value || '').trim();
       if (!v) return false;
-      return uniqueLists[colIndex].includes(v);
+      const subset = new Set();
+      for (const row of data){
+        if (rowMatches(row, colIndex)){
+          subset.add(String(row[colIndex]));
+        }
+      }
+      return subset.has(v);
     }
     inputs.forEach((inp, i) => {
       inp.addEventListener('change', e => {
