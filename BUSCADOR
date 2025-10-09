@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tabla filtrable encadenada 7 columnas con contador</title>
+  <title>Tabla filtrable 7 columnas (final)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -38,8 +38,9 @@
 <body>
   <h2>Tabla filtrable encadenada 7 columnas</h2>
   <div class="meta">
-    ➕ Ahora en cada desplegable aparece el número de repeticiones por valor (por ejemplo: “A (127)”).  
-    Esto se calcula en tiempo real sobre el subconjunto filtrado actual.
+    ➕ Usa <b>+palabra</b> para forzar coincidencia, <b>-palabra</b> para excluir.  
+    📊 Los desplegables muestran <code>valor (n)</code> con el número de apariciones en el contexto actual.  
+    🔁 Se actualizan dinámicamente según los filtros activos.
   </div>
 
   <div class="actions">
@@ -68,7 +69,7 @@
   <div class="status" id="status"></div>
 
   <script>
-    // 🔽 Sustituye por tus datos reales
+    // 🔽 Sustituye por tus datos reales (7 columnas)
     const data = [
       ["FICH001","12345","TXT","3 puertas","F","desc X","C1 100€"],
       ["FICH002","67890","TXT","3 puertas","F","desc X","C1 200€"],
@@ -143,7 +144,7 @@
       const dl = document.getElementById('dl'+colIndex);
       dl.innerHTML = '';
 
-      // 🟡 NUEVO: contar repeticiones
+      // Contar repeticiones por valor en el subconjunto filtrado actual
       const counts = new Map();
       for (const row of data){
         if (rowMatches(row, colIndex)){
@@ -152,6 +153,7 @@
         }
       }
 
+      // Orden alfabético (puedes cambiar a ordenar por n si prefieres)
       const options = Array.from(counts.entries()).sort((a,b)=>a[0].localeCompare(b[0]));
       const t = (typed||'').toLowerCase();
       let count = 0;
@@ -159,7 +161,7 @@
         if (!typed || val.toLowerCase().includes(t)){
           const opt = document.createElement('option');
           opt.value = val;
-          opt.label = `${val} (${n})`; // 🟡 mostrar contador
+          opt.label = `${val} (${n})`;
           dl.appendChild(opt);
           if (++count >= MAX_SUGGESTIONS) break;
         }
@@ -185,10 +187,22 @@
         document.getElementById('dl'+i).innerHTML='';
       }
       renderTable();
+      updateAllDatalists();
     }
 
+    // Inicial
     renderTable();
-    updateAllDatalists(); // inicial
+    updateAllDatalists();
+
+    // 👇 Hack: abrir desplegable al enfocar inputs vacíos
+    inputs.forEach(inp => {
+      inp.addEventListener('focus', () => {
+        if (inp.value === '') {
+          inp.setAttribute('placeholder', ' ');
+          setTimeout(()=>inp.setAttribute('placeholder',''),0);
+        }
+      });
+    });
   </script>
 </body>
 </html>
