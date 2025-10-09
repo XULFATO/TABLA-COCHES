@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Tabla 7 columnas con filtros y datalist autocierre</title>
+  <title>Tabla filtrable 7 columnas con resaltado</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
@@ -24,27 +24,42 @@
     thead input:focus { border-color: var(--active); box-shadow: 0 0 0 3px rgba(11,110,253,.15); }
     thead input.active { color: var(--active); font-weight: 700; }
     tbody tr:nth-child(even) td { background: #fafafa; }
+    mark {
+      background: none;
+      color: var(--active);
+      font-weight: 700;
+    }
     .status { font-size: 12px; color: var(--muted); margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h2>Tabla filtrable por escritura + desplegable</h2>
-  <div class="meta">Escribe para ver sugerencias (máx. 50 por columna). Los filtros se combinan. El desplegable se cierra solo al elegir o con Enter/Tab/Escape.</div>
+  <h2>Tabla filtrable 7 columnas</h2>
+  <div class="meta">
+    Escribe para ver sugerencias (máx. 50 por columna).  
+    Usa <b>+palabra</b> para forzar coincidencia y <b>-palabra</b> para excluir.  
+    Las coincidencias aparecen <mark>resaltadas</mark>.  
+    Si hay más de 500 coincidencias con filtros, se muestran todas.
+  </div>
 
   <table>
     <thead>
       <tr>
-        <th><input id="f0" list="dl0" placeholder="Marca" oninput="handleType(0,this)"><datalist id="dl0"></datalist></th>
-        <th><input id="f1" list="dl1" placeholder="Modelo" oninput="handleType(1,this)"><datalist id="dl1"></datalist></th>
-        <th><input id="f2" list="dl2" placeholder="Caballos" oninput="handleType(2,this)"><datalist id="dl2"></datalist></th>
-        <th><input id="f3" list="dl3" placeholder="Potencia (kW)" oninput="handleType(3,this)"><datalist id="dl3"></datalist></th>
-        <th><input id="f4" list="dl4" placeholder="Año" oninput="handleType(4,this)"><datalist id="dl4"></datalist></th>
-        <th><input id="f5" list="dl5" placeholder="País" oninput="handleType(5,this)"><datalist id="dl5"></datalist></th>
-        <th><input id="f6" list="dl6" placeholder="Descripción" oninput="handleType(6,this)"><datalist id="dl6"></datalist></th>
+        <th><input id="f0" list="dl0" placeholder="Fichero" oninput="handleType(0,this)"><datalist id="dl0"></datalist></th>
+        <th><input id="f1" list="dl1" placeholder="Código" oninput="handleType(1,this)"><datalist id="dl1"></datalist></th>
+        <th><input id="f2" list="dl2" placeholder="Formato" oninput="handleType(2,this)"><datalist id="dl2"></datalist></th>
+        <th><input id="f3" list="dl3" placeholder="Descripción" oninput="handleType(3,this)"><datalist id="dl3"></datalist></th>
+        <th><input id="f4" list="dl4" placeholder="Capítulo" oninput="handleType(4,this)"><datalist id="dl4"></datalist></th>
+        <th><input id="f5" list="dl5" placeholder="Descripción 2" oninput="handleType(5,this)"><datalist id="dl5"></datalist></th>
+        <th><input id="f6" list="dl6" placeholder="C EURO" oninput="handleType(6,this)"><datalist id="dl6"></datalist></th>
       </tr>
       <tr>
-        <th>Marca</th><th>Modelo</th><th>Caballos</th><th>Potencia (kW)</th>
-        <th>Año</th><th>País</th><th>Descripción</th>
+        <th title="Valores únicos calculados al cargar">Fichero</th>
+        <th title="Valores únicos calculados al cargar">Código</th>
+        <th title="Valores únicos calculados al cargar">Formato</th>
+        <th title="Valores únicos calculados al cargar">Descripción</th>
+        <th title="Valores únicos calculados al cargar">Capítulo</th>
+        <th title="Valores únicos calculados al cargar">Descripción 2</th>
+        <th title="Valores únicos calculados al cargar">C EURO</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -53,46 +68,32 @@
   <div class="status" id="status"></div>
 
   <script>
-    // 🔽 PEGA AQUÍ TUS 23.000 REGISTROS (cada fila: [marca, modelo, caballos, kW, año, país, descripción])
+    // 🔽 Sustituye por tus 23.000 registros reales (7 columnas)
     const data = [
-      ["Audi","A3 35 TFSI","150","110","2020","Alemania","Compacto premium eficiente, ideal para ciudad"],
-      ["BMW","320i","184","135","2019","Alemania","Berlina equilibrada, buen consumo en autopista"],
-      ["Mercedes","C200","163","120","2021","Alemania","Confort alto y ayudas a la conducción"],
-      ["Volkswagen","Golf 1.5 TSI","130","96","2018","Alemania","Clásico compacto con buen maletero"],
-      ["Ford","Focus 1.0 EcoBoost","125","92","2022","EE. UU.","Dinámico, buen chasis y conectividad"],
-      ["Renault","Mégane TCe","140","103","2020","Francia","Relación calidad-precio muy sólida"],
-      ["Peugeot","308 PureTech","130","96","2019","Francia","Interior moderno i-Cockpit"],
-      ["Toyota","Corolla Hybrid","122","90","2021","Japón","Híbrido fiable, consumo muy bajo"],
-      ["SEAT","León 1.5 TSI","150","110","2020","España","Equilibrio entre deportividad y confort"],
-      ["Honda","Civic VTEC","182","134","2019","Japón","Motor elástico y buen espacio trasero"],
-      ["Opel","Astra 1.2","145","107","2021","Alemania","Compacto cómodo para largos viajes"],
-      ["Fiat","Tipo 1.4","95","70","2018","Italia","Económico en mantenimiento y seguro"],
-      ["Škoda","Octavia 1.5 TSI","150","110","2020","Chequia","Muy espacioso, maletero enorme"],
-      ["Hyundai","i30 1.0 T-GDi","120","88","2022","Corea","Garantía larga y equipamiento completo"],
-      ["Kia","Ceed 1.4 T-GDi","140","103","2021","Corea","Buena dotación tecnológica de serie"],
-      ["Citroën","C4 PureTech","130","96","2020","Francia","Suspensión confortable, diseño distintivo"],
-      ["Volvo","S60 T4","190","140","2019","Suecia","Seguridad líder y buen aislamiento"],
-      ["Mini","Cooper 1.5","136","100","2021","Reino Unido","Estilo icónico y manejo ágil"],
-      ["Alfa Romeo","Giulia 2.0","200","147","2018","Italia","Tracción trasera y tacto deportivo"],
-      ["Tesla","Model 3 SR+","300","220","2022","EE. UU.","Eléctrico con gran aceleración y OTA"]
+      ["FICH001","12345","TXT","Descripción de prueba 1","Capítulo A","Otra descripción","C1 100€"],
+      ["FICH002","67890","PDF","Algo interesante Madrid","Capítulo B","Texto auxiliar","C2 250€"],
+      ["FICH003","13579","CSV","Incluye Alemania","Capítulo C","Más detalles","C3 75€"],
+      ["FICH004","24680","XLS","Otro registro de Madrid","Capítulo D","Descripción extendida","C4 300€"],
     ];
 
-    // ⚙️ Configurables
-    const MAX_SUGGESTIONS = 50; // opciones máx por datalist
-    const MAX_RENDER = 500;     // filas máx a pintar (fluidez con muchos datos)
+    const MAX_SUGGESTIONS = 50;
+    const DEFAULT_RENDER_LIMIT = 500;
 
-    // Estado
     const inputs = [...document.querySelectorAll('thead input')];
     const filters = Array(7).fill('');
     const tbody = document.getElementById('tbody');
     const statusEl = document.getElementById('status');
 
-    // Uniques por columna para sugerencias
+    // Uniques por columna
     const uniques = Array.from({length:7}, ()=> new Set());
     for (const row of data) for (let c=0;c<7;c++) uniques[c].add(String(row[c]));
     const uniqueLists = uniques.map(s => Array.from(s).sort());
 
-    // Debounce
+    // Tooltip con nº de valores únicos por columna
+    document.querySelectorAll('thead tr:nth-child(2) th').forEach((th,i)=>{
+      th.title = `${uniqueLists[i].length.toLocaleString()} valores únicos`;
+    });
+
     let tId;
     const debounce = (fn, ms=120) => { clearTimeout(tId); tId = setTimeout(fn, ms); };
 
@@ -100,13 +101,8 @@
       const val = (el.value || '').trim();
       filters[colIndex] = val.toLowerCase();
 
-      // estilo activo/inactivo del input
       if (val) el.classList.add('active'); else el.classList.remove('active');
-
-      // actualizar sugerencias
       updateDatalist(colIndex, val);
-
-      // pintar
       debounce(renderTable);
     }
 
@@ -129,80 +125,97 @@
     function rowMatches(row){
       for (let i=0;i<7;i++){
         const f = filters[i];
-        if (f && !String(row[i]).toLowerCase().includes(f)) return false;
+        if (!f) continue;
+
+        const parts = f.split(/\s+/).filter(Boolean);
+        const cell = String(row[i]).toLowerCase();
+
+        for (const p of parts) {
+          if (p.startsWith('+')) {
+            if (!cell.includes(p.slice(1))) return false;
+          } else if (p.startsWith('-')) {
+            if (cell.includes(p.slice(1))) return false;
+          } else {
+            if (!cell.includes(p)) return false;
+          }
+        }
       }
       return true;
     }
 
-    function renderTable(){
-      const frag = document.createDocumentFragment();
-      let shown = 0, matched = 0;
-      for (const row of data) {
-        if (!rowMatches(row)) continue;
-        matched++;
-        if (shown < MAX_RENDER){
-          const tr = document.createElement('tr');
-          for (let c=0;c<7;c++){
-            const td = document.createElement('td');
-            td.textContent = row[c];
-            tr.appendChild(td);
-          }
-          frag.appendChild(tr);
-          shown++;
-        }
+    function highlightText(text, colIndex){
+      const f = filters[colIndex];
+      if (!f) return text;
+
+      let result = text;
+      const parts = f.split(/\s+/).filter(Boolean).filter(p => !p.startsWith('-'));
+      for (const p of parts) {
+        const term = p.startsWith('+') ? p.slice(1) : p;
+        if (!term) continue;
+        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        result = result.replace(regex, '<mark>$1</mark>');
       }
+      return result;
+    }
+
+    function renderTable(){
+      const matchedRows = [];
+      for (const row of data) {
+        if (rowMatches(row)) matchedRows.push(row);
+      }
+
+      const matched = matchedRows.length;
+      const activeFilters = filters.some(f => f.trim() !== '');
+      const renderLimit = (activeFilters && matched > DEFAULT_RENDER_LIMIT) ? matched : DEFAULT_RENDER_LIMIT;
+
+      const frag = document.createDocumentFragment();
+      for (const row of matchedRows.slice(0, renderLimit)) {
+        const tr = document.createElement('tr');
+        for (let c=0;c<7;c++){
+          const td = document.createElement('td');
+          td.innerHTML = highlightText(String(row[c]), c);
+          tr.appendChild(td);
+        }
+        frag.appendChild(tr);
+      }
+
       tbody.innerHTML = '';
       tbody.appendChild(frag);
-      statusEl.textContent = `Coincidencias: ${matched.toLocaleString()} — Mostrando: ${shown.toLocaleString()}${matched>shown?' (limitado por rendimiento)':''}`;
+      statusEl.textContent = `Coincidencias: ${matched.toLocaleString()} — Mostrando: ${Math.min(matched, renderLimit).toLocaleString()}${matched>renderLimit?' (limitado por rendimiento)':''}`;
     }
 
-    // Inicial
     renderTable();
 
-    // ======= AUTOCIERRE FIABLE DEL DATALIST =======
+    // ===== AUTOCIERRE DATALIST =====
     function closeDatalist(el) {
       const listId = el.getAttribute('list');
-      el.blur();                  // intenta cerrar el popup
-      el.setAttribute('list',''); // lo fuerza a cerrarse
+      el.blur();
+      el.setAttribute('list','');
       setTimeout(() => {
-        el.setAttribute('list', listId); // restaura
-        el.focus();                      // opcional: vuelve foco para seguir tecleando
-        el.select();                     // opcional: selecciona el texto
+        el.setAttribute('list', listId);
+        el.focus();
+        el.select();
       }, 0);
     }
-
     function isExactOption(el, colIndex) {
       const v = (el.value || '').trim();
       if (!v) return false;
-      // al usar uniqueLists, la comprobación es O(1) si lo convertimos en Set (opcional)
       return uniqueLists[colIndex].includes(v);
     }
-
-    // Eventos para cerrar el desplegable sin clic extra
     inputs.forEach((inp, i) => {
-      // al seleccionar una sugerencia
       inp.addEventListener('change', e => {
         handleType(i, e.target);
         closeDatalist(e.target);
       });
-      // con teclas: Enter / Tab / Escape
       inp.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-          handleType(i, e.target);
-          closeDatalist(e.target);
-        } else if (e.key === 'Tab' || e.key === 'Escape') {
-          closeDatalist(e.target);
-        }
+        if (e.key === 'Enter') { handleType(i, e.target); closeDatalist(e.target); }
+        else if (e.key === 'Tab' || e.key === 'Escape') { closeDatalist(e.target); }
       });
-      // si escribe exactamente un valor de la lista, cerrar
       inp.addEventListener('input', e => {
         handleType(i, e.target);
-        if (isExactOption(e.target, i)) {
-          closeDatalist(e.target);
-        }
+        if (isExactOption(e.target, i)) { closeDatalist(e.target); }
       });
     });
-    // ===============================================
   </script>
 </body>
 </html>
